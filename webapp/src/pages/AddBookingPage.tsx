@@ -12,9 +12,10 @@ import {
   Select,
   type SelectChangeEvent,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material'
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorBanner } from '../components/ErrorBanner'
@@ -24,6 +25,24 @@ import { CREATE_BOOKING } from '../graphql/mutations'
 import { LIST_PEOPLE, LIST_ROOMS } from '../graphql/queries'
 import { BOOKING_ERROR_MESSAGES } from '../graphql/types'
 import type { CreateBookingResult, Person, Room } from '../graphql/types'
+
+// Only offer minutes on a 5-minute boundary in the time picker, matching the
+// API's requirement that booking start/end times fall on a 5 minute boundary.
+const BOOKING_TIME_STEPS = { minutes: 5 }
+
+function nextFiveMinuteBoundary(from: Dayjs): Dayjs {
+  const rounded = from.second(0).millisecond(0)
+  const remainder = rounded.minute() % 5
+  return remainder === 0 ? rounded : rounded.add(5 - remainder, 'minute')
+}
+
+function defaultStartTime(): Dayjs {
+  return nextFiveMinuteBoundary(dayjs())
+}
+
+function defaultEndTime(): Dayjs {
+  return defaultStartTime().add(30, 'minute')
+}
 
 export default function AddBookingPage() {
   const navigate = useNavigate()
@@ -42,8 +61,8 @@ export default function AddBookingPage() {
   const [roomId, setRoomId] = useState('')
   const [organiserId, setOrganiserId] = useState('')
   const [attendeeIds, setAttendeeIds] = useState<string[]>([])
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
+  const [startTime, setStartTime] = useState<Dayjs | null>(defaultStartTime)
+  const [endTime, setEndTime] = useState<Dayjs | null>(defaultEndTime)
   const [bookingErrors, setBookingErrors] = useState<string[]>([])
 
   const [createBooking, { loading: submitting, error: mutationError, reset }] = useMutation<{
@@ -75,7 +94,15 @@ export default function AddBookingPage() {
     setBookingErrors([])
 
     const result = await createBooking({
-      variables: { booking: { roomId, organiserId, attendeeIds, startTime, endTime } },
+      variables: {
+        booking: {
+          roomId,
+          organiserId,
+          attendeeIds,
+          startTime: startTime?.format('YYYY-MM-DDTHH:mm:ss') ?? '',
+          endTime: endTime?.format('YYYY-MM-DDTHH:mm:ss') ?? '',
+        },
+      },
     })
 
     const payload = result.data?.createBooking
@@ -161,21 +188,19 @@ export default function AddBookingPage() {
               </Select>
             </FormControl>
 
-            <TextField
+            <DateTimePicker
               label="Start time"
-              type="datetime-local"
               value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              fullWidth
+              onChange={(value) => setStartTime(value)}
+              timeSteps={BOOKING_TIME_STEPS}
+              slotProps={{ textField: { fullWidth: true } }}
             />
-            <TextField
+            <DateTimePicker
               label="End time"
-              type="datetime-local"
               value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-              fullWidth
+              onChange={(value) => setEndTime(value)}
+              timeSteps={BOOKING_TIME_STEPS}
+              slotProps={{ textField: { fullWidth: true } }}
             />
 
             <Stack direction="row" spacing={2}>

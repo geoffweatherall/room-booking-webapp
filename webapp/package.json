@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@apollo/client": "^4.2.5",
@@ -15,12 +16,15 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
+    "@mui/x-date-pickers": "^9.8.0",
+    "dayjs": "^1.11.21",
     "graphql": "^16.14.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
