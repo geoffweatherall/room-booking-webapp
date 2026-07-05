@@ -1,6 +1,10 @@
 # room-booking-webapp
 
-A single-page web application for the [room-booking-api](../room-booking-api) GraphQL API. It lets users view and add persons, rooms, and bookings. The app is a static build hosted on AWS (S3 + CloudFront) and talks directly to the AppSync GraphQL endpoint from the browser.
+A project that is part of my [Claude Code exploration](https://github.com/geoffweatherall/room-booking).
+
+## Details
+
+A single-page web application for the [room-booking-api](https://github.com/geoffweatherall/room-booking-api) GraphQL API. It lets users view and add persons, rooms, and bookings. The app is a static build hosted on AWS (S3 + CloudFront) and talks directly to the AppSync GraphQL endpoint from the browser.
 
 This checkout expects the `room-booking-api` project to be a **sibling directory** — the deploy script reads the API's URL and key from its Terraform outputs.
 
