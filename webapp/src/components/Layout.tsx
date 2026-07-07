@@ -1,5 +1,6 @@
 import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/authContext'
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -10,6 +11,13 @@ const navItems = [
 
 export function Layout() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { email, signOut } = useAuth()
+
+  function handleSignOut() {
+    signOut()
+    navigate('/')
+  }
 
   return (
     <>
@@ -18,7 +26,7 @@ export function Layout() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Room Booking
           </Typography>
-          <Box component="nav" sx={{ display: 'flex', gap: 1 }}>
+          <Box component="nav" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             {navItems.map((item) => {
               const isActive = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
               return (
@@ -37,6 +45,20 @@ export function Layout() {
                 </Button>
               )
             })}
+            {email ? (
+              <>
+                <Typography variant="body2" sx={{ ml: 2, opacity: 0.8 }}>
+                  {email}
+                </Typography>
+                <Button color="inherit" onClick={handleSignOut}>
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button color="inherit" component={Link} to="/signin" sx={{ ml: 2 }}>
+                Sign in
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </AppBar>

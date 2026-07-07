@@ -17,6 +17,7 @@
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "@mui/x-date-pickers": "^9.8.0",
+    "amazon-cognito-identity-js": "^6.3.20",
     "dayjs": "^1.11.21",
     "graphql": "^16.14.2",
     "react": "^19.2.7",

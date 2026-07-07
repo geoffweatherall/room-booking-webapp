@@ -1,11 +1,24 @@
 import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client'
+import { SetContextLink } from '@apollo/client/link/context'
+import { currentIdToken } from './auth/cognito'
+
+// Attaches the signed-in user's Cognito JWT to every GraphQL request; AppSync
+// rejects requests without a valid token.
+const authLink = new SetContextLink(async (prevContext) => {
+  const token = await currentIdToken()
+  return {
+    headers: {
+      ...prevContext.headers,
+      ...(token ? { Authorization: token } : {}),
+    },
+  }
+})
 
 export const apolloClient = new ApolloClient({
-  link: new HttpLink({
-    uri: import.meta.env.VITE_GRAPHQL_API_URL,
-    headers: {
-      'x-api-key': import.meta.env.VITE_GRAPHQL_API_KEY,
-    },
-  }),
+  link: authLink.concat(
+    new HttpLink({
+      uri: import.meta.env.VITE_GRAPHQL_API_URL,
+    }),
+  ),
   cache: new InMemoryCache(),
 })

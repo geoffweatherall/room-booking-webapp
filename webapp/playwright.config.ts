@@ -8,9 +8,20 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
   },
   projects: [
+    // Signs in as the e2e test user once and saves the session for the main project.
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+    },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
   ],
   webServer: {
