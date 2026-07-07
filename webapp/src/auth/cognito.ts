@@ -71,6 +71,30 @@ export function confirmSignUp(email: string, code: string): Promise<void> {
   })
 }
 
+/** Starts a password reset: Cognito emails a verification code to the user. */
+export function forgotPassword(email: string): Promise<void> {
+  const user = new CognitoUser({ Username: email, Pool: userPool })
+  return new Promise((resolve, reject) => {
+    user.forgotPassword({
+      // Called once the code has been sent; the UI collects it in the next step.
+      inputVerificationCode: () => resolve(),
+      onSuccess: () => resolve(),
+      onFailure: reject,
+    })
+  })
+}
+
+/** Completes a password reset with the emailed code and the user's new password. */
+export function confirmForgotPassword(email: string, code: string, newPassword: string): Promise<void> {
+  const user = new CognitoUser({ Username: email, Pool: userPool })
+  return new Promise((resolve, reject) => {
+    user.confirmPassword(code, newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: reject,
+    })
+  })
+}
+
 export function signOut(): void {
   userPool.getCurrentUser()?.signOut()
 }

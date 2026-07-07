@@ -15,7 +15,7 @@ Users must **sign in** (or sign up) with an email address and password before th
 | Path | Purpose |
 |---|---|
 | [webapp/](webapp/) | The React application (Vite + TypeScript). All frontend source, tests, and build config live here. |
-| [webapp/src/pages/](webapp/src/pages/) | One component per route — the list pages (`PersonsPage`, `RoomsPage`, `BookingsPage`), the add-forms (`AddPersonPage`, `AddRoomPage`, `AddBookingPage`), the auth forms (`SignInPage`, `SignUpPage`), and `HomePage`. This is where page-level logic lives. |
+| [webapp/src/pages/](webapp/src/pages/) | One component per route — the list pages (`PersonsPage`, `RoomsPage`, `BookingsPage`), the add-forms (`AddPersonPage`, `AddRoomPage`, `AddBookingPage`), the auth forms (`SignInPage`, `SignUpPage`, `ForgotPasswordPage`), and `HomePage`. This is where page-level logic lives. |
 | [webapp/src/auth/](webapp/src/auth/) | Everything Cognito: the promise wrappers around `amazon-cognito-identity-js` ([cognito.ts](webapp/src/auth/cognito.ts)), the React auth context/hook ([authContext.ts](webapp/src/auth/authContext.ts)), and its provider ([AuthProvider.tsx](webapp/src/auth/AuthProvider.tsx)). |
 | [webapp/src/components/](webapp/src/components/) | Shared presentational components used across pages: `Layout` (app bar + nav + sign-in/out), `RequireAuth` (route guard), `ErrorBanner`, `SuccessToast`, `SubmitButton`. |
 | [webapp/src/graphql/](webapp/src/graphql/) | Everything about talking to the API: query/mutation documents, TypeScript types mirroring the schema, error-code → message maps, and date formatting. |
@@ -30,7 +30,7 @@ The `src/` layout follows the conventional React "group by file type" pattern (p
 
 - **React 19** with **TypeScript**, built by **Vite**. Strict-mode SPA, no server-side rendering — everything runs in the browser.
 - **MUI (Material UI) v9** provides the design language: default Material theme (`createTheme()` with no customisation), `CssBaseline`, and standard components — `AppBar` navigation, `Paper`-wrapped forms and tables, `Alert`/`Snackbar` for feedback. **MUI X Date Pickers** (with **dayjs**) provide the booking time pickers.
-- **React Router v7** does client-side routing. Routes are declared in [App.tsx](webapp/src/App.tsx): `/`, `/signin` and `/signup` are public; `/persons`, `/persons/add`, `/rooms`, `/rooms/add`, `/bookings` and `/bookings/add` are wrapped in the `RequireAuth` guard; unknown paths redirect to `/`.
+- **React Router v7** does client-side routing. Routes are declared in [App.tsx](webapp/src/App.tsx): `/`, `/signin`, `/signup` and `/forgot-password` are public; `/persons`, `/persons/add`, `/rooms`, `/rooms/add`, `/bookings` and `/bookings/add` are wrapped in the `RequireAuth` guard; unknown paths redirect to `/`.
 - **amazon-cognito-identity-js** talks to the Cognito user pool (SRP sign-in, sign-up, token storage/refresh in `localStorage`).
 - **Apollo Client v4** handles all GraphQL communication and caching (`InMemoryCache`).
 - **oxlint** for linting, **Playwright** for end-to-end tests.
@@ -55,6 +55,7 @@ Authentication is an **Amazon Cognito user pool** owned by the API project (see 
 
 - **Sign up** ([SignUpPage](webapp/src/pages/SignUpPage.tsx)) is two steps: register an email + password (at least 8 characters with upper/lower case, a number and a symbol), then enter the verification code Cognito emails. On confirmation the user is signed in automatically.
 - **Sign in** ([SignInPage](webapp/src/pages/SignInPage.tsx)) authenticates with SRP (the password never leaves the browser in plain form). Tokens are cached in `localStorage` and refreshed transparently, so sessions survive page reloads.
+- **Forgot password** ([ForgotPasswordPage](webapp/src/pages/ForgotPasswordPage.tsx), linked from the sign-in form) is two steps: request a verification code for an email address, then enter the emailed code with a new password. On success the user is signed in with the new password automatically. Cognito's *prevent user existence errors* setting is enabled, so requesting a code for an unknown address behaves exactly like a real one — the form never reveals whether an account exists.
 - **Route guarding**: only the home page and the two auth forms are public. [RequireAuth](webapp/src/components/RequireAuth.tsx) redirects signed-out visitors of any other route to `/signin`, remembering where they were heading and returning them there after sign-in.
 - **App bar**: shows the signed-in user's email and a Sign out button (or a Sign in link). Signing out clears the Cognito session and the Apollo cache.
 - The auth state (current user's email + sign-in/out functions) is provided by [AuthProvider](webapp/src/auth/AuthProvider.tsx) and read with the `useAuth()` hook; the promise-based Cognito wrappers live in [cognito.ts](webapp/src/auth/cognito.ts).
@@ -134,6 +135,7 @@ Playwright starts the Vite dev server on port 5173 automatically (or reuses one 
 These browser tests use a real user, while the API project's acceptance tests use machine-to-machine (client_credentials) tokens — the API README's *Authentication in end-to-end tests* section explains both approaches and why each was chosen.
 
 - [tests/auth.spec.ts](webapp/tests/auth.spec.ts) runs signed-out (it discards the saved session) and covers the auth rules: the home page is public, every other route redirects to `/signin`, sign-in returns you to the page you were heading to, sign-out locks the app again, and a wrong password shows an error.
+- [tests/forgot-password.spec.ts](webapp/tests/forgot-password.spec.ts) also runs signed-out and covers the reset flow: the sign-in form links to it, requesting a code advances to the code + new-password step, and a wrong code is rejected. It deliberately uses an email with no account — thanks to *prevent user existence errors* the flow behaves identically to a real user's, so the test sends no email and can't hit per-user reset rate limits (the code-entry step with a *correct* code can't be automated without an inbox).
 - [tests/booking-form.spec.ts](webapp/tests/booking-form.spec.ts) covers the Add Booking form's time pickers — asserting that only 5-minute-boundary minutes are offered, matching the API's booking rule.
 
 Note the dev server needs a valid `webapp/.env` since the pages under test talk to the live API and user pool.

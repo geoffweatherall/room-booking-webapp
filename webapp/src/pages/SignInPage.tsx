@@ -66,6 +66,10 @@ export default function SignInPage() {
               <MuiLink component={Link} to="/signup">
                 Sign up
               </MuiLink>
+              {' · '}
+              <MuiLink component={Link} to="/forgot-password">
+                Forgot password?
+              </MuiLink>
             </Typography>
           </Stack>
         </Stack>
