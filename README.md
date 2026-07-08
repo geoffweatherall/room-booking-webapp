@@ -21,7 +21,7 @@ Users must **sign in** (or sign up) with an email address and password before th
 | [webapp/src/graphql/](webapp/src/graphql/) | Everything about talking to the API: query/mutation documents, TypeScript types mirroring the schema, error-code → message maps, and date formatting. |
 | [webapp/src/hooks/](webapp/src/hooks/) | Shared hooks; currently `useLocationToast`, which shows a one-shot success toast after navigation. |
 | [webapp/tests/](webapp/tests/) | Playwright end-to-end tests. |
-| [deploy/terraform/](deploy/terraform/) | Terraform for the hosting infrastructure: S3 bucket ([s3.tf](deploy/terraform/s3.tf)) and CloudFront distribution ([cloudfront.tf](deploy/terraform/cloudfront.tf)). |
+| [deploy/terraform/](deploy/terraform/) | Terraform for the hosting infrastructure: S3 bucket ([s3.tf](deploy/terraform/s3.tf)) and CloudFront distribution ([cloudfront.tf](deploy/terraform/cloudfront.tf)). All resource names are prefixed with `<environment>-<project_name>` ([locals.tf](deploy/terraform/locals.tf)) so multiple environments can coexist in one AWS account. State is stored remotely in S3, one state file per environment ([backend.hcl](deploy/terraform/backend.hcl) — see the [room-booking-bootstrap-terraform](https://github.com/geoffweatherall/room-booking-bootstrap-terraform) README for how that bucket is set up, and the [room-booking project README](https://github.com/geoffweatherall/room-booking#multi-environment-deployments) for the multi-environment design). |
 | [deploy.sh](deploy.sh) / [undeploy.sh](undeploy.sh) | Deploy and tear down (see below). |
 
 The `src/` layout follows the conventional React "group by file type" pattern (pages / components / hooks / api-layer) described in the [React FAQ on file structure](https://legacy.reactjs.org/docs/faq-structure.html#grouping-by-file-type), on top of a standard [Vite React scaffold](https://vite.dev/guide/).
@@ -91,14 +91,19 @@ Like the API, hosting scales to zero: S3 storage pennies plus per-request CloudF
 
 ## Build, run, deploy
 
-Prerequisites: Node.js + npm, Terraform ≥ 1.5, AWS credentials, and a deployed `room-booking-api` in the sibling directory.
+Prerequisites: Node.js + npm, Terraform ≥ 1.10, AWS credentials, and a deployed `room-booking-api` in the sibling directory.
+
+Like the API, `deploy.sh`/`undeploy.sh` take an **environment** name (e.g.
+`test`, `production`, or your own name) and talk to the `room-booking-api`
+deployment of that same environment — see the [room-booking project README](https://github.com/geoffweatherall/room-booking#multi-environment-deployments)
+for the full multi-environment how-to.
 
 ### Local development
 
 ```bash
 cd webapp
 cp .env.example .env        # then fill in real values: source the API project's
-                            # authenticate.sh and copy GRAPHQL_API_URL,
+                            # authenticate.sh <environment> and copy GRAPHQL_API_URL,
                             # COGNITO_USER_POOL_ID and COGNITO_WEBAPP_CLIENT_ID
                             # into the three VITE_ variables.
 npm install
@@ -109,23 +114,23 @@ npm run build               # type-check (tsc -b) + production build into dist/
 
 ### Deploy / undeploy
 
-`./deploy.sh` performs, in order:
+`./deploy.sh <environment>` performs, in order:
 
-1. Sources the API project's `authenticate.sh` to obtain `GRAPHQL_API_URL` and the `COGNITO_*` variables from its Terraform outputs (fails fast if the API checkout or deployment is missing).
-2. `terraform init` + `terraform apply -auto-approve` in [deploy/terraform](deploy/terraform) to create/update the S3 bucket and CloudFront distribution.
+1. Sources the API project's `authenticate.sh <environment>` to obtain `GRAPHQL_API_URL` and the `COGNITO_*` variables from that environment's Terraform outputs (fails fast if the API checkout or that environment's deployment is missing).
+2. `terraform init` (state key `<environment>/room-booking-webapp/terraform.tfstate`) + `terraform apply -auto-approve -var="environment=<environment>"` in [deploy/terraform](deploy/terraform) to create/update the S3 bucket and CloudFront distribution.
 3. Writes `webapp/.env.production` with the API URL, Cognito user pool id, and webapp client id.
 4. `npm install` and `npm run build` to produce `webapp/dist/`.
 5. `aws s3 sync webapp/dist s3://<bucket> --delete` to upload the build and remove stale files.
 6. Creates a CloudFront invalidation for `/*` so the new version is served immediately, then prints the site URL.
 
-`./undeploy.sh` runs `terraform destroy` (with interactive confirmation) — it deletes the distribution and the bucket including all uploaded assets.
+`./undeploy.sh <environment>` runs `terraform destroy` (with interactive confirmation) — it deletes that environment's distribution and bucket including all uploaded assets.
 
 ## Tests
 
 **End-to-end (Playwright):**
 
 ```bash
-source ../room-booking-api/authenticate.sh   # exports E2E_USER_EMAIL / E2E_USER_PASSWORD
+source ../room-booking-api/authenticate.sh test   # exports E2E_USER_EMAIL / E2E_USER_PASSWORD
 cd webapp
 npm run test:e2e
 ```

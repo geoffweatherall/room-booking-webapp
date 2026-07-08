@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "site" {
-  bucket        = "${var.project_name}-site-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.resource_prefix}-site-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
 }
 
