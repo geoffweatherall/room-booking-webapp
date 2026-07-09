@@ -29,7 +29,8 @@ The `src/` layout follows the conventional React "group by file type" pattern (p
 ## Architecture
 
 - **React 19** with **TypeScript**, built by **Vite**. Strict-mode SPA, no server-side rendering — everything runs in the browser.
-- **MUI (Material UI) v9** provides the design language: default Material theme (`createTheme()` with no customisation), `CssBaseline`, and standard components — `AppBar` navigation, `Paper`-wrapped forms and tables, `Alert`/`Snackbar` for feedback. **MUI X Date Pickers** (with **dayjs**) provide the booking time pickers.
+- **MUI (Material UI) v9** provides the design language: `CssBaseline` and standard components — `AppBar` navigation, `Paper`-wrapped forms and tables, `Alert`/`Snackbar` for feedback. **MUI X Date Pickers** (with **dayjs**) provide the booking time pickers.
+- **Branding**: the theme's palette is built from the [room-booking project's brand tokens](https://github.com/geoffweatherall/room-booking/tree/main/branding) ([theme/tokens.ts](webapp/src/theme/tokens.ts), [theme/theme.ts](webapp/src/theme/theme.ts)), with a light/dark toggle in the app bar ([theme/ThemeModeProvider.tsx](webapp/src/theme/ThemeModeProvider.tsx)) that defaults to the OS's `prefers-color-scheme` and otherwise remembers an explicit choice in `localStorage`. The brand mark (`assets/logo.svg`) appears in the app bar next to the app name, and its `icon.svg` variant is the favicon.
 - **React Router v7** does client-side routing. Routes are declared in [App.tsx](webapp/src/App.tsx): `/`, `/signin`, `/signup` and `/forgot-password` are public; `/persons`, `/persons/add`, `/rooms`, `/rooms/add`, `/bookings` and `/bookings/add` are wrapped in the `RequireAuth` guard; unknown paths redirect to `/`.
 - **amazon-cognito-identity-js** talks to the Cognito user pool (SRP sign-in, sign-up, token storage/refresh in `localStorage`).
 - **Apollo Client v4** handles all GraphQL communication and caching (`InMemoryCache`).

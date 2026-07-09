@@ -19,6 +19,8 @@ if [[ ! "${environment}" =~ ^[a-z0-9-]+$ ]]; then
   exit 1
 fi
 
+echo "Deploying room-booking-webapp to '${environment}'..."
+
 api_dir="../room-booking-api"
 if [[ ! -f "${api_dir}/authenticate.sh" ]]; then
   echo "Expected to find the room-booking-api checkout at ${api_dir} (as a sibling of this directory)." >&2

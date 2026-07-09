@@ -1,6 +1,10 @@
-import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material'
+import { AppBar, Box, Button, Container, IconButton, Toolbar, Typography } from '@mui/material'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import LightModeIcon from '@mui/icons-material/LightMode'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/authContext'
+import { useThemeMode } from '../theme/themeModeContext'
+import logo from '../assets/logo.svg'
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -13,6 +17,7 @@ export function Layout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { email, displayName, signOut } = useAuth()
+  const { mode, toggleMode } = useThemeMode()
 
   function handleSignOut() {
     signOut()
@@ -23,6 +28,12 @@ export function Layout() {
     <>
       <AppBar position="static">
         <Toolbar>
+          <Box
+            component="img"
+            src={logo}
+            alt=""
+            sx={{ width: 32, height: 32, mr: 1.5 }}
+          />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Room Booking
           </Typography>
@@ -59,6 +70,14 @@ export function Layout() {
                 Sign in
               </Button>
             )}
+            <IconButton
+              color="inherit"
+              onClick={toggleMode}
+              aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              sx={{ ml: 1 }}
+            >
+              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
           </Box>
         </Toolbar>
       </AppBar>
