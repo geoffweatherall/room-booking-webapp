@@ -1,105 +1,84 @@
-import { AppBar, Box, Button, Container, IconButton, Toolbar, Typography } from '@mui/material'
-import DarkModeIcon from '@mui/icons-material/DarkMode'
-import LightModeIcon from '@mui/icons-material/LightMode'
-import dayjs from 'dayjs'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/authContext'
-import { useThemeMode } from '../theme/themeModeContext'
+import MenuIcon from '@mui/icons-material/Menu'
+import { AppBar, Box, Container, Drawer, IconButton, Toolbar, Typography } from '@mui/material'
+import { useState } from 'react'
+import { Outlet } from 'react-router-dom'
 import logo from '../assets/logo.svg'
+import { AccountBox } from './AccountBox'
+import { MenuContent } from './MenuContent'
 
-const AVAILABILITY_PATH_PATTERN = /^\/rooms\/[^/]+\/availability$/
-const CALENDAR_PATH_PATTERN = /^\/persons\/[^/]+\/calendar$/
+const DRAWER_WIDTH = 260
 
-function navButtonSx(isActive: boolean) {
-  return {
-    fontWeight: isActive ? 700 : 400,
-    borderBottom: isActive ? '2px solid currentColor' : '2px solid transparent',
-    borderRadius: 0,
-  }
-}
-
+/**
+ * Responsive nav shell, following Material Design's standard pattern: a permanent sidebar on
+ * desktop, collapsing to a hamburger-triggered flyout on narrow screens (< the "md" breakpoint).
+ */
 export function Layout() {
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { email, displayName, personId, signOut } = useAuth()
-  const { mode, toggleMode } = useThemeMode()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  // The "Calendar" nav item goes straight to the signed-in user's own linked Person. If there
-  // isn't one (e.g. the demo user, or the e2e test user), it's disabled rather than falling back
-  // to showing some other person's calendar.
-
-  function handleSignOut() {
-    signOut()
-    navigate('/')
+  function closeMobileMenu() {
+    setMobileOpen(false)
   }
 
-  const todayAvailabilityPath = `/rooms/${dayjs().format('YYYY-MM-DD')}/availability`
-  const isHomeActive = pathname === '/'
-  const isAvailabilityActive = AVAILABILITY_PATH_PATTERN.test(pathname) || pathname === '/rooms/add'
-  const isCalendarActive = CALENDAR_PATH_PATTERN.test(pathname)
+  const drawerContent = (
+    <>
+      <Toolbar sx={{ gap: 1.5 }}>
+        <Box component="img" src={logo} alt="" sx={{ width: 32, height: 32 }} />
+        <Typography variant="h6" component="div" noWrap>
+          Room Booking
+        </Typography>
+      </Toolbar>
+      <MenuContent onNavigate={closeMobileMenu} />
+      <AccountBox />
+    </>
+  )
 
   return (
-    <>
-      <AppBar position="static">
+    <Box sx={{ display: 'flex' }}>
+      {/* Mobile-only top bar carrying the menu toggle; hidden from "md" up, where the sidebar
+          below is permanently visible instead. */}
+      <AppBar position="fixed" sx={{ display: { xs: 'block', md: 'none' }, zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
-          <Box component="img" src={logo} alt="" sx={{ width: 32, height: 32, mr: 1.5 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <MenuIcon />
+          </IconButton>
+          <Box component="img" src={logo} alt="" sx={{ width: 28, height: 28, ml: 1.5, mr: 1 }} />
+          <Typography variant="h6" component="div" noWrap>
             Room Booking
           </Typography>
-          <Box component="nav" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Button component={Link} to="/" color="inherit" sx={navButtonSx(isHomeActive)}>
-              Home
-            </Button>
-            <Button
-              component={Link}
-              to={todayAvailabilityPath}
-              color="inherit"
-              sx={navButtonSx(isAvailabilityActive)}
-            >
-              Availability
-            </Button>
-            {personId ? (
-              <Button
-                component={Link}
-                to={`/persons/${personId}/calendar`}
-                color="inherit"
-                sx={navButtonSx(isCalendarActive)}
-              >
-                Calendar
-              </Button>
-            ) : (
-              <Button color="inherit" disabled sx={navButtonSx(false)}>
-                Calendar
-              </Button>
-            )}
-            {email ? (
-              <>
-                <Typography variant="body2" sx={{ ml: 2, opacity: 0.8 }}>
-                  {displayName}
-                </Typography>
-                <Button color="inherit" onClick={handleSignOut}>
-                  Sign out
-                </Button>
-              </>
-            ) : (
-              <Button color="inherit" component={Link} to="/signin" sx={{ ml: 2 }}>
-                Sign in
-              </Button>
-            )}
-            <IconButton
-              color="inherit"
-              onClick={toggleMode}
-              aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              sx={{ ml: 1 }}
-            >
-              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-          </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Outlet />
-      </Container>
-    </>
+
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={closeMobileMenu}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
+        {/* Spacer matching the mobile app bar's height, so content doesn't start underneath it. */}
+        <Toolbar sx={{ display: { xs: 'flex', md: 'none' } }} />
+        <Container maxWidth="md" sx={{ py: 4 }}>
+          <Outlet />
+        </Container>
+      </Box>
+    </Box>
   )
 }
