@@ -12,12 +12,13 @@ import {
   Typography,
 } from '@mui/material'
 import dayjs from 'dayjs'
+import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/authContext'
 import { SignInForm } from '../components/SignInForm'
 import { formatLocalTime } from '../graphql/formatDateTime'
 import { LIST_BOOKINGS } from '../graphql/queries'
-import type { Booking } from '../graphql/types'
+import type { Booking, BookingsFilter } from '../graphql/types'
 
 const SIGN_UP_STEPS = [
   'Enter your name, email address, and password.',
@@ -26,6 +27,7 @@ const SIGN_UP_STEPS = [
 ]
 
 const DATE_KEY_FORMAT = 'YYYY-MM-DD'
+const DATE_TIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss'
 
 interface AgendaListProps {
   title: string
@@ -64,29 +66,41 @@ function AgendaList({ title, bookings, loading }: AgendaListProps) {
 export default function HomePage() {
   const navigate = useNavigate()
   const { email, personId, personLoading } = useAuth()
-  // Bookings change constantly, so this keeps refetching on every visit (`cache-and-network`).
-  // Skipped while signed out, since that content is hidden entirely and the query would just fail.
-  const { data: bookingsData, loading: bookingsLoading } = useQuery<{ bookings: Booking[] }>(LIST_BOOKINGS, {
+
+  // Today through the end of tomorrow, for the signed-in person - the API filters server-side so
+  // this only ever fetches the two days' worth of bookings the agenda actually shows. Kept as its
+  // own filtered query rather than reusing PersonCalendarPage's broader one: Apollo's cache keys
+  // a list field by its exact arguments, so a 2-day window isn't served from a cached 6-week one
+  // even when it's a subset, and this is the landing route - it usually runs before that page has
+  // ever been visited in the session anyway. Skipped until both the caller is signed in and their
+  // Person id has resolved, since that's what the filter needs.
+  const bookingsFilter = useMemo<BookingsFilter>(() => {
+    const todayStart = dayjs().startOf('day')
+    return {
+      fromStartTime: todayStart.format(DATE_TIME_FORMAT),
+      toEndTime: todayStart.add(2, 'day').format(DATE_TIME_FORMAT),
+      personId: personId ?? undefined,
+    }
+  }, [personId])
+  const { data: bookingsData, loading: bookingsLoading } = useQuery<
+    { bookings: Booking[] },
+    { filter: BookingsFilter }
+  >(LIST_BOOKINGS, {
+    variables: { filter: bookingsFilter },
     fetchPolicy: 'cache-and-network',
-    skip: !email,
+    skip: !email || !personId,
   })
 
   const today = dayjs().format(DATE_KEY_FORMAT)
   const tomorrow = dayjs().add(1, 'day').format(DATE_KEY_FORMAT)
 
   function agendaFor(dateKey: string): Booking[] {
-    if (!personId) return []
     return (bookingsData?.bookings ?? [])
       .filter((booking) => booking.startTime.startsWith(dateKey))
-      .filter(
-        (booking) =>
-          booking.organiser.id === personId ||
-          booking.attendees.some((attendee) => attendee.id === personId),
-      )
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
   }
 
-  const agendaLoading = bookingsLoading && !bookingsData
+  const agendaLoading = personLoading || (bookingsLoading && !bookingsData)
 
   if (!email) {
     // Not secrets - this is a demo system, so the whole point is that these are shown here for

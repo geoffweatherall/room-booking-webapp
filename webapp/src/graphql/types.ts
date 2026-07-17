@@ -31,9 +31,17 @@ export interface Booking {
   endTime: string
 }
 
+// fromStartTime/toEndTime must be supplied together (or both omitted); personId is independent.
+export interface BookingsFilter {
+  fromStartTime?: string
+  toEndTime?: string
+  personId?: string
+}
+
 export type BookingError =
   | 'StartMissaligned'
   | 'EndMissaligned'
+  | 'SpansMultipleDays'
   | 'InsufficientCapacity'
   | 'TimeRangeUnavailable'
   | 'RoomRequired'
@@ -51,6 +59,7 @@ export interface CreateBookingResult {
 export const BOOKING_ERROR_MESSAGES: Record<BookingError, string> = {
   StartMissaligned: 'Start time must fall on a 5 minute boundary.',
   EndMissaligned: 'End time must fall on a 5 minute boundary.',
+  SpansMultipleDays: 'A booking cannot span midnight - start and end time must be on the same day.',
   InsufficientCapacity: 'The room does not have enough capacity for all attendees.',
   TimeRangeUnavailable: 'The room is already booked during that time range.',
   RoomRequired: 'Please select a room.',

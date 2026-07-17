@@ -13,16 +13,18 @@ import {
 import dayjs, { type Dayjs } from 'dayjs'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/authContext'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { errorMessages } from '../graphql/errorMessages'
 import { formatLocalTime } from '../graphql/formatDateTime'
 import { LIST_BOOKINGS, LIST_PEOPLE } from '../graphql/queries'
-import type { Booking, Person } from '../graphql/types'
+import type { Booking, BookingsFilter, Person } from '../graphql/types'
 
 const WEEKS_SHOWN = 6
 const WORK_DAYS_PER_WEEK = 5
 const WORK_DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 const DATE_KEY_FORMAT = 'YYYY-MM-DD'
+const DATE_TIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss'
 
 // dayjs .day() is 0 (Sunday) .. 6 (Saturday); shift so the week starts Monday.
 function startOfWorkWeek(from: Dayjs): Dayjs {
@@ -35,6 +37,7 @@ export default function PersonCalendarPage() {
   const { personId } = useParams<{ personId: string }>()
   const navigate = useNavigate()
   const [dismissedError, setDismissedError] = useState(false)
+  const { personId: ownPersonId, displayName: ownDisplayName } = useAuth()
 
   // People change rarely, so fetch once and read from the cache from then on (`cache-first`)
   // instead of refetching on every visit; a full page refresh resets the in-memory cache and
@@ -44,34 +47,61 @@ export default function PersonCalendarPage() {
     loading: peopleLoading,
     error: peopleError,
   } = useQuery<{ people: Person[] }>(LIST_PEOPLE, { fetchPolicy: 'cache-first' })
-  const {
-    data: bookingsData,
-    loading: bookingsLoading,
-    error: bookingsError,
-  } = useQuery<{ bookings: Booking[] }>(LIST_BOOKINGS, { fetchPolicy: 'cache-and-network' })
 
   const people = useMemo(
     () => [...(peopleData?.people ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
     [peopleData],
   )
-  const selectedPerson = people.find((person) => person.id === personId)
+  // Before the full people list has loaded, fall back to the signed-in user's own name - already
+  // known via useAuth(), independent of this page's own LIST_PEOPLE query - rather than leaving
+  // the dropdown showing placeholder text until the list resolves. This covers the common case
+  // ("My Calendar" always links here with the signed-in user's own personId); it doesn't help for
+  // a cold deep link to someone else's calendar, since nothing else knows their name yet either.
+  const selectedPerson = useMemo(() => {
+    const fromList = people.find((person) => person.id === personId)
+    if (fromList) return fromList
+    if (personId && personId === ownPersonId && ownDisplayName) {
+      return { id: personId, name: ownDisplayName }
+    }
+    return undefined
+  }, [people, personId, ownPersonId, ownDisplayName])
 
-  const weeks = useMemo(() => {
-    const firstMonday = startOfWorkWeek(dayjs())
-    return Array.from({ length: WEEKS_SHOWN }, (_, weekIndex) =>
-      Array.from({ length: WORK_DAYS_PER_WEEK }, (_, dayIndex) =>
-        firstMonday.add(weekIndex * 7 + dayIndex, 'day'),
+  const firstMonday = useMemo(() => startOfWorkWeek(dayjs()), [])
+
+  const weeks = useMemo(
+    () =>
+      Array.from({ length: WEEKS_SHOWN }, (_, weekIndex) =>
+        Array.from({ length: WORK_DAYS_PER_WEEK }, (_, dayIndex) =>
+          firstMonday.add(weekIndex * 7 + dayIndex, 'day'),
+        ),
       ),
-    )
-  }, [])
+    [firstMonday],
+  )
+
+  // This person's bookings across the full visible window (first Monday through the last
+  // Friday shown) - the API filters server-side (organiser-or-attendee match, date range) so
+  // this page never fetches another person's bookings or bookings outside the weeks shown.
+  const bookingsFilter = useMemo<BookingsFilter>(() => {
+    const lastFriday = firstMonday.add((WEEKS_SHOWN - 1) * 7 + (WORK_DAYS_PER_WEEK - 1), 'day')
+    return {
+      fromStartTime: firstMonday.format(DATE_TIME_FORMAT),
+      toEndTime: lastFriday.add(1, 'day').format(DATE_TIME_FORMAT),
+      personId,
+    }
+  }, [firstMonday, personId])
+  const {
+    data: bookingsData,
+    loading: bookingsLoading,
+    error: bookingsError,
+  } = useQuery<{ bookings: Booking[] }, { filter: BookingsFilter }>(LIST_BOOKINGS, {
+    variables: { filter: bookingsFilter },
+    skip: !personId,
+    fetchPolicy: 'cache-and-network',
+  })
 
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, Booking[]>()
-    if (!personId) return map
     for (const booking of bookingsData?.bookings ?? []) {
-      const involved =
-        booking.organiser.id === personId || booking.attendees.some((a) => a.id === personId)
-      if (!involved) continue
       const dateKey = booking.startTime.slice(0, 10)
       const list = map.get(dateKey) ?? []
       list.push(booking)
@@ -81,7 +111,7 @@ export default function PersonCalendarPage() {
       list.sort((a, b) => a.startTime.localeCompare(b.startTime))
     }
     return map
-  }, [bookingsData, personId])
+  }, [bookingsData])
 
   function handlePersonChange(selected: Person | null) {
     if (selected) {
@@ -90,6 +120,10 @@ export default function PersonCalendarPage() {
   }
 
   const loading = peopleLoading || bookingsLoading
+  // True only on a genuine first load - no cached people, or no cached bookings for the currently
+  // selected person - not on a cache-and-network background revalidation of data we already have
+  // (bookingsLoading stays true then too, but bookingsData is already populated from the cache).
+  const showSpinner = (peopleLoading && !peopleData) || (bookingsLoading && !bookingsData)
   const bannerMessages = [...errorMessages(peopleError), ...errorMessages(bookingsError)]
   const today = dayjs().format(DATE_KEY_FORMAT)
 
@@ -114,13 +148,13 @@ export default function PersonCalendarPage() {
         renderInput={(params) => <TextField {...params} label="Person" />}
       />
 
-      {loading && peopleData && <LinearProgress />}
+      {loading && !showSpinner && <LinearProgress />}
 
       {!dismissedError && (
         <ErrorBanner messages={bannerMessages} onDismiss={() => setDismissedError(true)} />
       )}
 
-      {loading && !peopleData ? (
+      {showSpinner ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
         </Box>

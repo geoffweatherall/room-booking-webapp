@@ -15,7 +15,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import { TimePicker } from '@mui/x-date-pickers/TimePicker'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -37,12 +38,29 @@ function nextFiveMinuteBoundary(from: Dayjs): Dayjs {
   return remainder === 0 ? rounded : rounded.add(5 - remainder, 'minute')
 }
 
+function defaultDate(): Dayjs {
+  return dayjs().startOf('day')
+}
+
 function defaultStartTime(): Dayjs {
   return nextFiveMinuteBoundary(dayjs())
 }
 
-function defaultEndTime(): Dayjs {
-  return defaultStartTime().add(30, 'minute')
+// A booking cannot span midnight (see BookingError.SpansMultipleDays), so the default end time
+// never rolls past 23:55 even if the default start time falls late in the day.
+function defaultEndTime(start: Dayjs): Dayjs {
+  const candidate = start.add(30, 'minute')
+  return candidate.isSame(start, 'day') ? candidate : start.hour(23).minute(55).second(0).millisecond(0)
+}
+
+// Combines a calendar date with a time-of-day into the ISO-8601 local date-time string the API
+// expects, e.g. "2026-07-01T14:30:00" - both startTime and endTime are built from the same date
+// value, so a booking can never span midnight from this form.
+function combineDateAndTime(date: Dayjs | null, time: Dayjs | null): string {
+  if (!date || !time) {
+    return ''
+  }
+  return date.hour(time.hour()).minute(time.minute()).second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss')
 }
 
 export default function AddBookingPage() {
@@ -63,8 +81,9 @@ export default function AddBookingPage() {
   const [roomId, setRoomId] = useState('')
   const [organiserId, setOrganiserId] = useState('')
   const [attendeeIds, setAttendeeIds] = useState<string[]>([])
+  const [date, setDate] = useState<Dayjs | null>(defaultDate)
   const [startTime, setStartTime] = useState<Dayjs | null>(defaultStartTime)
-  const [endTime, setEndTime] = useState<Dayjs | null>(defaultEndTime)
+  const [endTime, setEndTime] = useState<Dayjs | null>(() => defaultEndTime(defaultStartTime()))
   const [bookingErrors, setBookingErrors] = useState<string[]>([])
 
   const [createBooking, { loading: submitting, error: mutationError, reset }] = useMutation<{
@@ -102,8 +121,8 @@ export default function AddBookingPage() {
           roomId,
           organiserId,
           attendeeIds,
-          startTime: startTime?.format('YYYY-MM-DDTHH:mm:ss') ?? '',
-          endTime: endTime?.format('YYYY-MM-DDTHH:mm:ss') ?? '',
+          startTime: combineDateAndTime(date, startTime),
+          endTime: combineDateAndTime(date, endTime),
         },
       },
     })
@@ -201,14 +220,20 @@ export default function AddBookingPage() {
               </Select>
             </FormControl>
 
-            <DateTimePicker
+            <DatePicker
+              label="Date"
+              value={date}
+              onChange={(value) => setDate(value)}
+              slotProps={{ textField: { fullWidth: true } }}
+            />
+            <TimePicker
               label="Start time"
               value={startTime}
               onChange={(value) => setStartTime(value)}
               timeSteps={BOOKING_TIME_STEPS}
               slotProps={{ textField: { fullWidth: true } }}
             />
-            <DateTimePicker
+            <TimePicker
               label="End time"
               value={endTime}
               onChange={(value) => setEndTime(value)}

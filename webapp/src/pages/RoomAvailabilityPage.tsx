@@ -23,10 +23,11 @@ import { BUSINESS_END_HOUR, BUSINESS_START_HOUR } from '../constants/businessHou
 import { errorMessages } from '../graphql/errorMessages'
 import { formatLocalTime } from '../graphql/formatDateTime'
 import { LIST_BOOKINGS, LIST_ROOMS } from '../graphql/queries'
-import type { Booking, Room } from '../graphql/types'
+import type { Booking, BookingsFilter, Room } from '../graphql/types'
 
 const DATE_PARAM_FORMAT = 'YYYY-MM-DD'
 const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const DATE_TIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss'
 
 const BUSINESS_START_MINUTES = BUSINESS_START_HOUR * 60
 const BUSINESS_END_MINUTES = BUSINESS_END_HOUR * 60
@@ -79,17 +80,30 @@ export default function RoomAvailabilityPage() {
 
   // Rooms change rarely, so `cache-first` fetches once and reuses the cache from then on; a full
   // page refresh resets the in-memory cache and picks up any changes. Bookings change constantly,
-  // so that query below still refetches on every visit.
+  // so that query below still refetches whenever the selected date (and so the filter) changes.
   const {
     data: roomsData,
     loading: roomsLoading,
     error: roomsError,
   } = useQuery<{ rooms: Room[] }>(LIST_ROOMS, { fetchPolicy: 'cache-first' })
+
+  // Only the selected day's bookings, across every room - the API filters server-side so this
+  // page never fetches more than one day's worth of bookings.
+  const bookingsFilter = useMemo<BookingsFilter>(() => {
+    const dayStart = selectedDate.startOf('day')
+    return {
+      fromStartTime: dayStart.format(DATE_TIME_FORMAT),
+      toEndTime: dayStart.add(1, 'day').format(DATE_TIME_FORMAT),
+    }
+  }, [selectedDate])
   const {
     data: bookingsData,
     loading: bookingsLoading,
     error: bookingsError,
-  } = useQuery<{ bookings: Booking[] }>(LIST_BOOKINGS, { fetchPolicy: 'cache-and-network' })
+  } = useQuery<{ bookings: Booking[] }, { filter: BookingsFilter }>(LIST_BOOKINGS, {
+    variables: { filter: bookingsFilter },
+    fetchPolicy: 'cache-and-network',
+  })
 
   const rooms = useMemo(
     () => [...(roomsData?.rooms ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -97,10 +111,8 @@ export default function RoomAvailabilityPage() {
   )
 
   const bookingsByRoom = useMemo(() => {
-    const dateKey = selectedDate.format(DATE_PARAM_FORMAT)
     const map = new Map<string, Booking[]>()
     for (const booking of bookingsData?.bookings ?? []) {
-      if (!booking.startTime.startsWith(dateKey)) continue
       const list = map.get(booking.room.id) ?? []
       list.push(booking)
       map.set(booking.room.id, list)
@@ -109,9 +121,13 @@ export default function RoomAvailabilityPage() {
       list.sort((a, b) => a.startTime.localeCompare(b.startTime))
     }
     return map
-  }, [bookingsData, selectedDate])
+  }, [bookingsData])
 
   const loading = roomsLoading || bookingsLoading
+  // True only on a genuine first load - no cached rooms, or no cached bookings for the currently
+  // selected date - not on a cache-and-network background revalidation of data we already have
+  // (bookingsLoading stays true then too, but bookingsData is already populated from the cache).
+  const showSpinner = (roomsLoading && !roomsData) || (bookingsLoading && !bookingsData)
   const bannerMessages = [...errorMessages(roomsError), ...errorMessages(bookingsError)]
 
   return (
@@ -153,13 +169,13 @@ export default function RoomAvailabilityPage() {
         {BUSINESS_END_HOUR.toString().padStart(2, '0')}:00).
       </Typography>
 
-      {loading && roomsData && <LinearProgress />}
+      {loading && !showSpinner && <LinearProgress />}
 
       {!dismissedError && (
         <ErrorBanner messages={bannerMessages} onDismiss={() => setDismissedError(true)} />
       )}
 
-      {loading && !roomsData ? (
+      {showSpinner ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
         </Box>

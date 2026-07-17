@@ -8,7 +8,7 @@ test.describe('Add Booking form - time picker minute options', () => {
     await expect(page.getByRole('heading', { name: 'Add Booking' })).toBeVisible()
 
     const startTimeGroup = page.getByRole('group', { name: 'Start time' })
-    await startTimeGroup.getByRole('button', { name: /Choose date/i }).click()
+    await startTimeGroup.getByRole('button', { name: /Choose time/i }).click()
 
     const minuteOptions = page.getByRole('listbox', { name: 'Select minutes' })
     await expect(minuteOptions).toBeVisible()
@@ -29,7 +29,7 @@ test.describe('Add Booking form - time picker minute options', () => {
     await expect(page.getByRole('heading', { name: 'Add Booking' })).toBeVisible()
 
     const endTimeGroup = page.getByRole('group', { name: 'End time' })
-    await endTimeGroup.getByRole('button', { name: /Choose date/i }).click()
+    await endTimeGroup.getByRole('button', { name: /Choose time/i }).click()
 
     const minuteOptions = page.getByRole('listbox', { name: 'Select minutes' })
     await expect(minuteOptions).toBeVisible()
@@ -41,5 +41,24 @@ test.describe('Add Booking form - time picker minute options', () => {
     for (const minute of minutes) {
       expect(Number(minute) % 5).toBe(0)
     }
+  })
+})
+
+test.describe('Add Booking form - single date field', () => {
+  test('offers one date field shared by start and end time, with no date field on the time pickers', async ({
+    page,
+  }) => {
+    await page.goto('/bookings/add')
+    await expect(page.getByRole('heading', { name: 'Add Booking' })).toBeVisible()
+
+    await expect(page.getByRole('group', { name: 'Date' })).toBeVisible()
+
+    const startTimeGroup = page.getByRole('group', { name: 'Start time' })
+    await expect(startTimeGroup.getByRole('button', { name: /Choose date/i })).toHaveCount(0)
+    await expect(startTimeGroup.getByRole('button', { name: /Choose time/i })).toBeVisible()
+
+    const endTimeGroup = page.getByRole('group', { name: 'End time' })
+    await expect(endTimeGroup.getByRole('button', { name: /Choose date/i })).toHaveCount(0)
+    await expect(endTimeGroup.getByRole('button', { name: /Choose time/i })).toBeVisible()
   })
 })

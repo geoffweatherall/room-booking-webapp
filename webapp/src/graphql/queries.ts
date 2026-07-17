@@ -29,8 +29,8 @@ export const LIST_ROOMS = gql`
 `
 
 export const LIST_BOOKINGS = gql`
-  query ListBookings {
-    bookings {
+  query ListBookings($filter: BookingsFilter) {
+    bookings(filter: $filter) {
       id
       subject
       startTime

@@ -11,6 +11,14 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   })
 
+  test('calendar and availability nav items are hidden while signed out', async ({ page }) => {
+    await page.goto('/')
+
+    // Both need a signed-in user, so they're omitted entirely rather than shown disabled.
+    await expect(page.getByText('Calendar', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Availability', { exact: true })).toHaveCount(0)
+  })
+
   test('signed-out home page offers a one-click demo sign-in when configured', async ({ page }) => {
     await page.goto('/')
 

@@ -1,0 +1,89 @@
+import { test, expect, type Page } from '@playwright/test'
+
+// No leading `^`: expect(page).toHaveURL(regExp) matches the full absolute URL (including the
+// origin), unlike a plain string argument, which resolves relative to baseURL.
+const CALENDAR_PATH_PATTERN = /\/persons\/[^/]+\/calendar$/
+
+/**
+ * The "Calendar" nav item's target depends on the signed-in user's own personId, which resolves
+ * asynchronously (a myPerson query AuthProvider fires after sign-in) - unlike every other nav
+ * item, whose target needs no lookup. These tests hold that one GraphQL operation open on demand
+ * so the still-resolving window is observable deterministically, instead of racing the real
+ * network (which usually resolves too fast to reliably catch mid-flight).
+ */
+async function gateMyPersonQuery(page: Page): Promise<() => void> {
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/graphql', async (route) => {
+    const body = route.request().postDataJSON()
+    if (body?.operationName === 'MyPerson') {
+      await gate
+    }
+    await route.continue()
+  })
+  return () => release()
+}
+
+test.describe('Calendar nav item while personId is still resolving', () => {
+  test('stays enabled before myPerson resolves, shows a spinner instead of navigating early if clicked, then falls back to disabled once resolved with no linked Person', async ({
+    page,
+  }) => {
+    // The saved session (auth.setup.ts) signs in as the e2e test user, who has no linked Person -
+    // myPerson resolves to null for them, so this also covers the "confirmed unavailable" path.
+    const releaseMyPerson = await gateMyPersonQuery(page)
+
+    await page.goto('/')
+
+    const calendarItem = page.getByRole('button', { name: 'Calendar', exact: true })
+    await expect(calendarItem).toBeVisible()
+    await expect(calendarItem).toBeEnabled()
+
+    await calendarItem.click()
+
+    await expect(calendarItem).toBeDisabled()
+    await expect(calendarItem.getByRole('progressbar')).toBeVisible()
+    await expect(page).toHaveURL('/')
+
+    releaseMyPerson()
+
+    await expect(calendarItem.getByRole('progressbar')).not.toBeVisible()
+    await expect(calendarItem).toBeDisabled()
+    await expect(page).toHaveURL('/')
+  })
+})
+
+test.describe('Calendar nav item once personId resolves', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("navigates to the signed-in user's calendar once myPerson resolves, if clicked first", async ({ page }) => {
+    await page.goto('/')
+
+    // The signed-out home page pre-fills the demo user's credentials from
+    // VITE_DEMO_USER_EMAIL/VITE_DEMO_USER_PASSWORD, which aren't set in every environment - skip
+    // rather than fail when that's the case, matching the pattern in auth.spec.ts. The demo user
+    // (unlike the e2e test user) has a linked Person, which is what this test needs.
+    const prefilledEmail = await page.getByRole('textbox', { name: 'Email' }).inputValue()
+    test.skip(!prefilledEmail, 'VITE_DEMO_USER_EMAIL / VITE_DEMO_USER_PASSWORD not configured')
+
+    const releaseMyPerson = await gateMyPersonQuery(page)
+
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+
+    const calendarItem = page.getByRole('button', { name: 'Calendar', exact: true })
+    await expect(calendarItem).toBeEnabled()
+
+    await calendarItem.click()
+
+    await expect(calendarItem).toBeDisabled()
+    await expect(calendarItem.getByRole('progressbar')).toBeVisible()
+    await expect(page).toHaveURL('/')
+
+    releaseMyPerson()
+
+    await expect(page).toHaveURL(CALENDAR_PATH_PATTERN)
+    await expect(page.getByRole('heading', { name: 'Person Calendar' })).toBeVisible()
+  })
+})
