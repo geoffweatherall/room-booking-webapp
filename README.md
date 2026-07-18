@@ -95,10 +95,24 @@ All rules are **enforced server-side** by the API's Lambda handlers (see the [AP
 The production build is a set of static files served from a **private S3 bucket** behind a **CloudFront distribution**:
 
 - The bucket blocks all public access; CloudFront reads it via an Origin Access Control, so the bucket is only reachable through the CDN.
-- CloudFront redirects HTTP→HTTPS, uses the default CloudFront certificate/domain, and `PriceClass_100` (cheapest edge locations).
+- CloudFront redirects HTTP→HTTPS and uses `PriceClass_100` (cheapest edge locations).
 - S3 403/404 responses are rewritten to `/index.html` with a 200 status so deep links to client-side routes (e.g. `/meetings/add`) load the SPA instead of erroring.
 
-Like the API, hosting scales to zero: S3 storage pennies plus per-request CloudFront charges, no fixed-cost resources.
+Like the API, hosting scales to zero: S3 storage pennies plus per-request CloudFront charges, no fixed-cost resources (Route53/ACM cost is covered under [mootmaker-domain](https://github.com/geoffweatherall/mootmaker-domain)).
+
+### Custom domain
+
+Each environment deploys behind its own hostname under `mootmaker.com`:
+`production` gets `www.mootmaker.com`, every other environment gets
+`www.<environment>.mootmaker.com` (see [domain.tf](deploy/terraform/domain.tf)
+for why each environment provisions its own certificate rather than sharing
+one wildcard). `deploy.sh`/`undeploy.sh` refuse any environment name that
+starts with `prod` but isn't exactly `production`, to avoid a typo silently
+landing on a production-looking-but-not-actually-production subdomain. The
+bare apex `mootmaker.com` redirects to `www.mootmaker.com` -
+see [mootmaker-domain](https://github.com/geoffweatherall/mootmaker-domain),
+which must already be deployed (nameservers configured at the registrar,
+delegation propagated) before this project's certificate can validate.
 
 ## Build, run, deploy
 

@@ -9,6 +9,6 @@ output "cloudfront_distribution_id" {
 }
 
 output "site_url" {
-  description = "Public URL of the deployed webapp."
-  value       = "https://${aws_cloudfront_distribution.site.domain_name}"
+  description = "Public URL of the deployed webapp, via its custom domain (see domain.tf)."
+  value       = "https://${local.webapp_domain}"
 }
