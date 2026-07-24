@@ -1,16 +1,18 @@
-import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
-import EventAvailableRoundedIcon from '@mui/icons-material/EventAvailableRounded'
-import FeedbackRoundedIcon from '@mui/icons-material/FeedbackRounded'
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded'
-import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
-import LoginRoundedIcon from '@mui/icons-material/LoginRounded'
-import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
-import PersonAddRoundedIcon from '@mui/icons-material/PersonAddRounded'
 import { CircularProgress, List, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material'
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/authContext'
+import {
+  AvailabilityIcon as EventAvailableRoundedIcon,
+  CalendarIcon as CalendarMonthRoundedIcon,
+  FeedbackIcon as FeedbackRoundedIcon,
+  HomeIcon as HomeRoundedIcon,
+  InfoIcon as InfoRoundedIcon,
+  LoginIcon as LoginRoundedIcon,
+  LogoutIcon as LogoutRoundedIcon,
+  PersonAddIcon as PersonAddRoundedIcon,
+} from '../icons'
 
 const AVAILABILITY_PATH_PATTERN = /^\/rooms\/[^/]+\/availability$/
 const CALENDAR_PATH_PATTERN = /^\/persons\/[^/]+\/calendar$/

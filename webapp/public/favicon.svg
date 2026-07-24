@@ -4,10 +4,11 @@
   <rect x="151" y="35" width="14" height="34" rx="7" fill="#4338ca"/>
   <rect x="40" y="55" width="160" height="150" rx="20" fill="#0e8f82"/>
   <path d="M60,55 H180 A20,20 0 0 1 200,75 V99 H40 V75 A20,20 0 0 1 60,55 Z" fill="#4338ca"/>
-  <circle cx="120" cy="78" r="21" fill="#faf9f6"/>
-  <path d="M110,79 L117,87 L132,68" fill="none" stroke="#4338ca" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="106" cy="79" r="19" fill="#faf9f6"/>
+  <circle cx="136" cy="79" r="22" fill="#4338ca"/>
+  <circle cx="136" cy="79" r="18" fill="#f59e0b"/>
   <rect x="60" y="115" width="26" height="26" rx="6" fill="#faf9f6" opacity="0.55"/>
-  <rect x="107" y="115" width="26" height="26" rx="6" fill="#f59e0b"/>
+  <rect x="107" y="115" width="26" height="26" rx="6" fill="#faf9f6" opacity="0.85"/>
   <rect x="154" y="115" width="26" height="26" rx="6" fill="#faf9f6" opacity="0.55"/>
   <rect x="60" y="151" width="26" height="26" rx="6" fill="#faf9f6" opacity="0.55"/>
   <rect x="107" y="151" width="26" height="26" rx="6" fill="#faf9f6" opacity="0.55"/>

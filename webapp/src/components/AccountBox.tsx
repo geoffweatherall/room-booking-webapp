@@ -1,8 +1,7 @@
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import { Avatar, Divider, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/authContext'
+import { PersonIcon as PersonRoundedIcon, SettingsIcon as SettingsRoundedIcon } from '../icons'
 
 /**
  * Bottom-of-sidebar account row: the signed-in user's name next to a settings shortcut. Sign
